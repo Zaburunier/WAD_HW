@@ -3,10 +3,11 @@ from . import views
 
 urlpatterns = [
     path("", views.index, name="homepage"),
+    path("/edit", views.edit_mode, name="edit"),
     path("auth/", views.auth, name="auth"),
     path("register/", views.register, name="register"),
-    path("edit/",views.edit_mode , name="edit"),
     path("tournaments/", views.tournaments, name="tournaments"),
+    path("tournaments/add", views.tournaments_add, name="tournaments_add"),
     path("tournaments/search/", views.tournaments_search, name="tournaments_search"),
     path("tournaments/<int:tournament_id>/", views.tournament_detail, name="tournament_detail"),
     path("tournaments/<int:tournament_id>/edit/", views.tournament_edit, name="tournament_edit"),

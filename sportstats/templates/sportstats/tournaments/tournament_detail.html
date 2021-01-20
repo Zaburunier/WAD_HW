@@ -11,6 +11,15 @@
         {% endfor %}
     </ul>
 
+    <div class="list-group h-100">
+        {% for match in latest_matches %}
+            <a href="{% url "match_detail" match.id %}" class="list-group-item list-group-item-action h-25">
+                {{ match.first_team }} {{ match.first_team_scores }} - {{ match.second_team_scores }} {{ match.second_team }}
+                <br>
+                ({{ match.tournament }}, {{ match.date_held }})
+            </a>
+        {% endfor %}
+    </div>
     <a href="{% url "tournament_edit" tournament.id %}">Изменить параметры турнира</a>
     {% if tournament.is_regular %}
         <a href="{% url "tournament_table" tournament.id %}">Открыть турнирную таблицу</a>

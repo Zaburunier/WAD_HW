@@ -2,16 +2,39 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, QueryDict
 from .models import Team, Tournament, Match, User
 from .forms import TournamentForm, TeamForm
-import json, http.client
+
 
 def index(request):
-
     return render(request, "sportstats/index.html")
 
 
-def tournaments(request):
+def edit_mode(request):
+    return render(request, "sportstats/index.html", {"navbar_color" : "bg-danger",
+                                                     "navbar_brand_text" : "Kernel Mode"})
 
+
+def tournaments(request):
     return render(request, "sportstats/tournaments/tournaments.html")
+
+
+def tournaments_add(request):
+    # Если отправлен новый турнир
+    if request.method == "POST":
+        formData = QueryDict.copy(request.POST)
+        new_tournament = Tournament(tournament_name = formData.get(key="tournament_name"), year_held = formData.get(key="year_held"),
+                                    country_name = formData.get(key="country_name"),
+                                    is_regular = True if formData.get(key="is_regular") == "on" else False)
+        new_tournament.save()
+        new_tournament.teams_participant.set(formData.getlist(key="teams_participant"))
+
+        new_tournament.save()
+        return redirect("tournament_detail", new_tournament.id)
+
+    else:
+        form = TournamentForm()
+        return render(request, "sportstats/tournaments/tournament_edit.html", {"form" : form,
+                                                                               "button_text" : "Добавить"})
+
 
 
 def tournaments_search(request):
@@ -42,8 +65,10 @@ def tournaments_search(request):
 def tournament_detail(request, tournament_id):
     tournament = get_object_or_404(Tournament, pk=tournament_id)
     participants = tournament.teams_participant.all()
+    latest_matches = Match.objects.filter(tournament__exact=tournament_id).order_by("-date_held")
     return render(request, "sportstats/tournaments/tournament_detail.html", {"tournament" : tournament,
-                                                                             "teams" : participants})
+                                                                             "teams" : participants,
+                                                                             "latest_matches" : latest_matches[:5]})
 
 
 def tournament_edit(request, tournament_id):
@@ -73,7 +98,8 @@ def tournament_edit(request, tournament_id):
             "is_regular": tournament.is_regular
         })
         return render(request, "sportstats/tournaments/tournament_edit.html", {"tournament": tournament,
-                                                                           "form" : form})
+                                                                           "form" : form,
+                                                                           "button_text" : "Изменить"})
 
 
 def tournament_table(request, tournament_id):
@@ -170,7 +196,7 @@ def team_detail(request, team_id):
 
     return render(request, "sportstats/teams/team_detail.html", {"team" : team,
                                                                  "tournaments" : tournaments,
-                                                                 "latest_matches" : latest_matches[:5],
+                                                                 "latest_matches" : latest_matches.order_by("-date_held")[:5],
                                                                   })
 
 
@@ -205,29 +231,29 @@ def team_edit(request, team_id):
 def auth(request):
     got_login = request.POST.get("auth_email")
     got_password = request.POST.get("auth_password")
-    # Если это до первой попытки или же ничего не введено, то возвращаем на ту же страницу
-    if got_login == "" and got_password == "":
-        return render(request, "sportstats/edit_mode/logon.html")
 
-    # Проверяем, найден ли пользователь
-    try:
-        user = User.objects.get(email=got_login)
-    except User.DoesNotExist:
-        try:
-            user = User.objects.get(username=got_login)
-        except User.DoesNotExist:
-            return render(request,
-                          "sportstats/edit_mode/logon.html",
-                          {"error_message": "Пользователь не найден!"})
-
-    # Проверяем, совпадает ли пароль
-    if user.password != got_password:
-        return render(request,
-                      "sportstats/edit_mode/logon.html",
-                      {"error_message": "Введён неверный пароль!"})
+    # Если это до первой попытки, то возвращаем на ту же страницу без указаний ошибки
+    if request.method == "GET":
+        return render(request, "sportstats/access_modes/logon.html")
     else:
-        return redirect("/", { "navbar_color": "bg-danger",
-                                      "navbar_brand_text" : "Kernel Mode"})
+        # Проверяем, найден ли пользователь
+        try:
+            user = User.objects.get(email=got_login)
+        except User.DoesNotExist:
+            try:
+                user = User.objects.get(username=got_login)
+            except User.DoesNotExist:
+                return render(request,
+                              "sportstats/access_modes/logon.html",
+                              {"error_message": "Пользователь не найден!"})
+
+        # Проверяем, совпадает ли пароль
+        if user.password != got_password:
+            return render(request,
+                          "sportstats/access_modes/logon.html",
+                          {"error_message": "Введён неверный пароль!"})
+        else:
+            return edit_mode(request)
 
 
 
@@ -242,10 +268,8 @@ def register(request):
         new_user = User(email=got_email, first_name=got_fname, last_name=got_lname,
                         username=got_login, password=got_pword)
         new_user.save()
-        return render(request, "sportstats/edit_mode/logon.html")
+        return render(request, "sportstats/access_modes/logon.html")
     else:
-        return render(request, "sportstats/edit_mode/new_user.html")
+        return render(request, "sportstats/access_modes/new_user.html")
 
 
-def edit_mode(request):
-    return render(request, "sportstats/edit_mode/edit_mode_main.html")
